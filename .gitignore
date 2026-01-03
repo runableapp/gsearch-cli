@@ -5,7 +5,6 @@ bin/
 *.dll
 *.so
 *.dylib
-create-testdb
 
 # Test database files
 *.db
