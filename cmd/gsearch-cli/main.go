@@ -14,32 +14,68 @@ const (
 	defaultDBPath = "~/.local/share/fsearch/fsearch.db"
 )
 
+type outputFormat string
+
+const (
+	outputFormatText outputFormat = "text"
+	outputFormatJSON outputFormat = "json"
+	outputFormatCSV  outputFormat = "csv"
+)
+
+type sortField string
+
+const (
+	sortFieldName sortField = "name"
+	sortFieldPath sortField = "path"
+	sortFieldSize sortField = "size"
+	sortFieldMTime sortField = "mtime"
+)
+
 func main() {
 	var (
 		dbPath         = flag.String("db", defaultDBPath, "Path to fsearch database file")
-		query          = flag.String("q", "", "Search query")
+		query          = flag.String("q", "", "Search query (supports wildcards: * and ?)")
 		caseSensitive  = flag.Bool("case", false, "Case-sensitive search")
 		wholeWord      = flag.Bool("whole", false, "Match whole words only")
-		searchPath     = flag.String("path", "", "Search in full path (instead of just name)")
+		searchPath     = flag.String("path", "", "Search in full path (instead of just name, supports wildcards)")
 		filesOnly      = flag.Bool("files", false, "Search only files")
 		foldersOnly    = flag.Bool("folders", false, "Search only folders")
-		maxResults = flag.Int("max", 0, "Maximum number of results (0 = unlimited)")
-		showStats  = flag.Bool("stats", false, "Show database statistics")
+		maxResults     = flag.Int("max", 0, "Maximum number of results (0 = unlimited)")
+		showStats      = flag.Bool("stats", false, "Show database statistics")
+		outputFormatStr = flag.String("output", "text", "Output format: text, json, or csv")
+		sortBy          = flag.String("sort", "", "Sort results by: name, path, size, or mtime")
+		showHelp        = flag.Bool("help", false, "Show detailed help")
+		flagHelp        = flag.Bool("h", false, "Show detailed help (alias for -help)")
 	)
 
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: %s [options]\n\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "Search the FSearch database from the command line.\n\n")
-		fmt.Fprintf(os.Stderr, "Options:\n")
-		flag.PrintDefaults()
-		fmt.Fprintf(os.Stderr, "\nExamples:\n")
-		fmt.Fprintf(os.Stderr, "  %s -q test\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "  %s -q test -files\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "  %s -path /home/user\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "  %s -stats\n", os.Args[0])
+		showUsage()
 	}
 
 	flag.Parse()
+
+	// Show help if requested
+	if *showHelp || *flagHelp {
+		showUsage()
+		os.Exit(0)
+	}
+
+	// Validate output format
+	format := outputFormat(strings.ToLower(*outputFormatStr))
+	if format != outputFormatText && format != outputFormatJSON && format != outputFormatCSV {
+		fmt.Fprintf(os.Stderr, "Error: invalid output format %q. Must be: text, json, or csv\n", *outputFormatStr)
+		os.Exit(1)
+	}
+
+	// Validate sort field
+	var sortFieldVal sortField
+	if *sortBy != "" {
+		sortFieldVal = sortField(strings.ToLower(*sortBy))
+		if sortFieldVal != sortFieldName && sortFieldVal != sortFieldPath && sortFieldVal != sortFieldSize && sortFieldVal != sortFieldMTime {
+			fmt.Fprintf(os.Stderr, "Error: invalid sort field %q. Must be: name, path, size, or mtime\n", *sortBy)
+			os.Exit(1)
+		}
+	}
 
 	// Expand ~ in path
 	if strings.HasPrefix(*dbPath, "~") {
@@ -86,8 +122,13 @@ func main() {
 		result = database.Search(opts)
 	}
 
-	// Print results
-	printResults(result)
+	// Sort results if requested
+	if *sortBy != "" {
+		sortResults(result, sortFieldVal)
+	}
+
+	// Print results in requested format
+	printResults(result, format)
 }
 
 func showDatabaseStats(database *db.Database) {
@@ -99,34 +140,6 @@ func showDatabaseStats(database *db.Database) {
 	fmt.Printf("  Sorted arrays: %d\n", len(database.SortedArrays))
 }
 
-func printResults(result *db.SearchResult) {
-	total := len(result.Files) + len(result.Folders)
-	if total == 0 {
-		fmt.Println("No results found.")
-		return
-	}
-
-	fmt.Printf("Found %d result(s):\n\n", total)
-
-	// Print folders first
-	for _, folder := range result.Folders {
-		path := folder.GetFullPath()
-		if path == "" {
-			path = "/"
-		}
-		fmt.Printf("📁 %s\n", path)
-	}
-
-	// Print files
-	for _, file := range result.Files {
-		path := file.GetFullPath()
-		fmt.Printf("📄 %s", path)
-		if file.Size > 0 {
-			fmt.Printf(" (%s)", formatSize(file.Size))
-		}
-		fmt.Println()
-	}
-}
 
 func formatSize(bytes int64) string {
 	const unit = 1024

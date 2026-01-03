@@ -8,9 +8,13 @@ A command-line interface for searching the FSearch database. This Go application
 - Case-sensitive and case-insensitive search
 - Whole word matching
 - Search by name or full path
+- Wildcard pattern matching (`*` and `?`)
 - Filter by files or folders only
+- Multiple output formats (text, JSON, CSV)
+- Sort results by name, path, size, or modification time
 - Display database statistics
 - Human-readable file sizes
+- Comprehensive help documentation
 
 ## Installation
 
@@ -55,7 +59,11 @@ gsearch-cli -q "test"
 ### Search Options
 
 - `-q <query>`: Search query (required unless using `-path`)
+  - Supports wildcard patterns: `*` (any sequence) and `?` (single character)
+  - Examples: `*.txt`, `test*`, `file?.go`
 - `-path <pattern>`: Search in full path instead of just name
+  - Also supports wildcard patterns
+  - Examples: `/home/*`, `*/Documents/*`
 - `-case`: Enable case-sensitive search (default: false)
 - `-whole`: Match whole words only (default: false)
 - `-files`: Search only files
@@ -64,32 +72,213 @@ gsearch-cli -q "test"
 - `-db <path>`: Path to database file (default: `~/.local/share/fsearch/fsearch.db`)
 - `-stats`: Show database statistics
 
+### Output Options
+
+- `-output <format>`: Output format (default: `text`)
+  - `text`: Human-readable format with folder/file indicators
+  - `json`: JSON array with structured fields (name, path, type, size, mtime)
+  - `csv`: CSV format with header row, suitable for spreadsheet import
+- `-sort <field>`: Sort results by field (default: no sorting)
+  - `name`: Sort by file/folder name (alphabetical)
+  - `path`: Sort by full path (alphabetical)
+  - `size`: Sort by file size (ascending), folders sorted by name
+  - `mtime`: Sort by modification time (oldest first)
+
+### Help
+
+- `-h`, `-help`: Show detailed help message with all options and examples
+
 ### Examples
 
-Search for files containing "test":
+**Basic search:**
+```bash
+gsearch-cli -q test
+```
+
+**Search for files containing "test":**
 ```bash
 gsearch-cli -q test -files
 ```
 
-Case-sensitive search:
+**Wildcard patterns:**
+```bash
+# Find all .txt files
+gsearch-cli -q "*.txt"
+
+# Find files starting with "test"
+gsearch-cli -q "test*"
+
+# Find files with single character before .go
+gsearch-cli -q "?.go"
+
+# Find files with "test" anywhere in name
+gsearch-cli -q "*test*"
+```
+
+**Case-sensitive search:**
 ```bash
 gsearch-cli -q Test -case
 ```
 
-Search in full path:
+**Search in full path:**
 ```bash
 gsearch-cli -path /home/user
 ```
 
-Show database statistics:
+**Wildcard path search:**
+```bash
+# Find all files in /home directory
+gsearch-cli -path "/home/*"
+
+# Find all .txt files in any path
+gsearch-cli -path "*.txt"
+```
+
+**Show database statistics:**
 ```bash
 gsearch-cli -stats
 ```
 
-Limit results:
+**Limit results:**
 ```bash
 gsearch-cli -q test -max 10
 ```
+
+**Output formats:**
+```bash
+# JSON output
+gsearch-cli -q test -output json
+
+# CSV output
+gsearch-cli -q test -output csv
+
+# Text output (default)
+gsearch-cli -q test -output text
+```
+
+**Sort results:**
+```bash
+# Sort by name
+gsearch-cli -q test -sort name
+
+# Sort by size
+gsearch-cli -q test -sort size
+
+# Sort by modification time
+gsearch-cli -q test -sort mtime
+
+# Sort by path
+gsearch-cli -q test -sort path
+```
+
+**Combine options:**
+```bash
+# Wildcard search, files only, sorted by size, JSON output
+gsearch-cli -q "*.go" -files -sort size -output json
+
+# Path search, sorted by modification time, CSV output
+gsearch-cli -path "/home/*" -sort mtime -output csv
+```
+
+**Show help:**
+```bash
+gsearch-cli -help
+# or
+gsearch-cli -h
+```
+
+### Wildcard Patterns
+
+gsearch-cli supports wildcard patterns for flexible searching:
+
+- `*` - Matches any sequence of characters (zero or more)
+- `?` - Matches a single character
+
+**Wildcard Examples:**
+
+```bash
+# Find all text files
+gsearch-cli -q "*.txt"
+
+# Find all files starting with "test"
+gsearch-cli -q "test*"
+
+# Find files with exactly one character before .go
+gsearch-cli -q "?.go"
+
+# Find files containing "test" anywhere
+gsearch-cli -q "*test*"
+
+# Wildcard in path search
+gsearch-cli -path "/home/*"
+gsearch-cli -path "*.txt"  # All .txt files in any path
+```
+
+**Note:** Wildcard patterns are automatically detected when `*` or `?` characters are present in the query. Special regex characters (`.`, `^`, `$`, etc.) are automatically escaped, so you can use them literally in your patterns.
+
+## Output Formats
+
+### Text Format (Default)
+
+Human-readable format with folder/file indicators:
+```
+Found 2 result(s):
+📁 /Documents
+📄 /home/user/test.txt (1.0 KB)
+```
+
+### JSON Format
+
+Structured JSON array with all available fields:
+```json
+[
+  {
+    "name": "test.txt",
+    "path": "/home/user/test.txt",
+    "type": "file",
+    "size": 1024,
+    "mtime": "2024-01-03T12:00:00Z",
+    "mtime_ts": 1704283200
+  },
+  {
+    "name": "Documents",
+    "path": "/Documents",
+    "type": "folder",
+    "mtime": "2024-01-03T12:00:00Z",
+    "mtime_ts": 1704283200
+  }
+]
+```
+
+Fields:
+- `name`: File or folder name
+- `path`: Full path
+- `type`: `"file"` or `"folder"`
+- `size`: File size in bytes (only for files)
+- `mtime`: Modification time in RFC3339 format
+- `mtime_ts`: Modification time as Unix timestamp
+
+### CSV Format
+
+CSV format with header row, suitable for spreadsheet import:
+```csv
+name,path,type,size,mtime
+test.txt,/home/user/test.txt,file,1024,2024-01-03T12:00:00Z
+Documents,/Documents,folder,,2024-01-03T12:00:00Z
+```
+
+Note: Folder entries have an empty `size` field.
+
+## Sorting
+
+Results can be sorted by any of the following fields:
+
+- **name**: Alphabetical sorting by file/folder name
+- **path**: Alphabetical sorting by full path
+- **size**: By file size (ascending). Folders are sorted by name when sorting by size
+- **mtime**: By modification time (oldest first)
+
+Sorting applies to both files and folders together. When sorting by size, folders (which don't have a size) are sorted by name instead.
 
 ## Database Format
 
@@ -167,6 +356,8 @@ go test -v -timeout 30s ./...
 Tests are located alongside the code they test:
 - `internal/db/database_test.go` - Tests for database loading and operations
 - `internal/db/testdb_test.go` - Tests for test database creation
+- `internal/db/search_wildcard_test.go` - Tests for wildcard pattern matching
+- `cmd/gsearch-cli/output_test.go` - Tests for output formats and sorting
 
 All tests follow Go's standard testing conventions:
 - Test functions are named `TestXxx` and take `*testing.T`

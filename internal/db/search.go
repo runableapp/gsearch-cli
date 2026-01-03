@@ -1,6 +1,7 @@
 package db
 
 import (
+	"regexp"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -33,11 +34,8 @@ func (db *Database) Search(opts SearchOptions) *SearchResult {
 		return result
 	}
 
-	// Normalize query
+	// Keep original query for wildcard detection (case conversion happens in matches())
 	query := opts.Query
-	if !opts.CaseSensitive {
-		query = strings.ToLower(query)
-	}
 
 	// Search files
 	if opts.SearchInFiles {
@@ -66,10 +64,67 @@ func (db *Database) Search(opts SearchOptions) *SearchResult {
 	return result
 }
 
+// hasWildcards checks if a string contains wildcard characters (* or ?)
+func hasWildcards(s string) bool {
+	return strings.Contains(s, "*") || strings.Contains(s, "?")
+}
+
+// convertWildcardToRegex converts a wildcard pattern to a regex pattern
+// * becomes .* (matches any sequence)
+// ? becomes . (matches single character)
+// Special regex characters are escaped
+// Pattern is anchored with ^ and $ for full string matching
+func convertWildcardToRegex(pattern string) string {
+	var result strings.Builder
+	result.WriteString("^") // Anchor start
+	
+	for _, char := range pattern {
+		switch char {
+		case '*':
+			result.WriteString(".*")
+		case '?':
+			result.WriteString(".")
+		case '.', '^', '$', '+', '(', ')', '[', ']', '{', '}', '\\', '|':
+			// Escape special regex characters
+			result.WriteRune('\\')
+			result.WriteRune(char)
+		default:
+			result.WriteRune(char)
+		}
+	}
+	
+	result.WriteString("$") // Anchor end
+	return result.String()
+}
+
 // matches checks if a string matches the query based on the search options
 func (db *Database) matches(text, query string, opts SearchOptions) bool {
+	// Check for wildcard patterns (before case conversion)
+	if hasWildcards(query) {
+		regexPattern := convertWildcardToRegex(query)
+		var re *regexp.Regexp
+		var err error
+		if opts.CaseSensitive {
+			re, err = regexp.Compile(regexPattern)
+		} else {
+			// Compile case-insensitive regex
+			re, err = regexp.Compile("(?i)" + regexPattern)
+		}
+		if err != nil {
+			// If regex compilation fails, fall back to substring match
+			if !opts.CaseSensitive {
+				text = strings.ToLower(text)
+				query = strings.ToLower(query)
+			}
+			return strings.Contains(text, query)
+		}
+		// Regex handles case sensitivity internally
+		return re.MatchString(text)
+	}
+
 	if !opts.CaseSensitive {
 		text = strings.ToLower(text)
+		query = strings.ToLower(query)
 	}
 
 	if opts.MatchWholeWord {
@@ -115,23 +170,52 @@ func (db *Database) matchWholeWord(text, query string) bool {
 }
 
 // SearchByPath searches for entries matching a path pattern
+// Supports wildcard patterns (* and ?)
 func (db *Database) SearchByPath(pattern string, caseSensitive bool) *SearchResult {
 	result := &SearchResult{
 		Files:   make([]*Entry, 0),
 		Folders: make([]*Folder, 0),
 	}
 
-	if !caseSensitive {
+	// Check for wildcard patterns (before case conversion)
+	useWildcard := hasWildcards(pattern)
+	var re *regexp.Regexp
+	if useWildcard {
+		// For wildcard patterns, we need to handle case sensitivity in the regex
+		regexPattern := convertWildcardToRegex(pattern)
+		var err error
+		if caseSensitive {
+			re, err = regexp.Compile(regexPattern)
+		} else {
+			// Compile case-insensitive regex
+			re, err = regexp.Compile("(?i)" + regexPattern)
+		}
+		if err != nil {
+			// If regex compilation fails, fall back to substring match
+			useWildcard = false
+		}
+	}
+
+	if !caseSensitive && !useWildcard {
 		pattern = strings.ToLower(pattern)
 	}
 
 	// Search files
 	for _, file := range db.Files {
 		path := file.GetFullPath()
-		if !caseSensitive {
-			path = strings.ToLower(path)
+		var matches bool
+		
+		if useWildcard {
+			// Regex handles case sensitivity internally
+			matches = re.MatchString(path)
+		} else {
+			if !caseSensitive {
+				path = strings.ToLower(path)
+			}
+			matches = strings.Contains(path, pattern)
 		}
-		if strings.Contains(path, pattern) {
+		
+		if matches {
 			result.Files = append(result.Files, file)
 		}
 	}
@@ -139,10 +223,19 @@ func (db *Database) SearchByPath(pattern string, caseSensitive bool) *SearchResu
 	// Search folders
 	for _, folder := range db.Folders {
 		path := folder.GetFullPath()
-		if !caseSensitive {
-			path = strings.ToLower(path)
+		var matches bool
+		
+		if useWildcard {
+			// Regex handles case sensitivity internally
+			matches = re.MatchString(path)
+		} else {
+			if !caseSensitive {
+				path = strings.ToLower(path)
+			}
+			matches = strings.Contains(path, pattern)
 		}
-		if strings.Contains(path, pattern) {
+		
+		if matches {
 			result.Folders = append(result.Folders, folder)
 		}
 	}

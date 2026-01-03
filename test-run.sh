@@ -98,10 +98,10 @@ fi
 
 # Step 2: Show database statistics
 echo -e "${YELLOW}Step 2: Displaying database statistics...${NC}"
-echo -e "Command: $(colorize_cmd "go run ./cmd/gsearch-cli/main.go -db $TEST_DB -stats")"
+echo -e "Command: $(colorize_cmd "go run ./cmd/gsearch-cli -db $TEST_DB -stats")"
 echo "Explanation: Shows database metadata including number of folders, files, and index flags"
 echo ""
-go run "$SCRIPT_DIR/cmd/gsearch-cli/main.go" -db "$TEST_DB" -stats
+go run "$SCRIPT_DIR/cmd/gsearch-cli" -db "$TEST_DB" -stats
 echo ""
 
 # Step 3: Run search queries
@@ -109,50 +109,122 @@ echo -e "${YELLOW}Step 3: Running search queries...${NC}\n"
 
 # Search 1: Simple name search
 echo -e "${BLUE}--- Search 1: Find files/folders containing 'test' ---${NC}"
-echo -e "Command: $(colorize_cmd "go run ./cmd/gsearch-cli/main.go -db $TEST_DB -q test")"
+echo -e "Command: $(colorize_cmd "go run ./cmd/gsearch-cli -db $TEST_DB -q test")"
 echo "Explanation: Searches for entries with 'test' in the name (case-insensitive by default)"
 echo ""
-go run "$SCRIPT_DIR/cmd/gsearch-cli/main.go" -db "$TEST_DB" -q test
+go run "$SCRIPT_DIR/cmd/gsearch-cli" -db "$TEST_DB" -q test
 echo ""
 
 # Search 2: Files only
 echo -e "${BLUE}--- Search 2: Find files only containing 'test' ---${NC}"
-echo -e "Command: $(colorize_cmd "go run ./cmd/gsearch-cli/main.go -db $TEST_DB -q test -files")"
+echo -e "Command: $(colorize_cmd "go run ./cmd/gsearch-cli -db $TEST_DB -q test -files")"
 echo "Explanation: Same search but filters to show only files, excluding folders"
 echo ""
-go run "$SCRIPT_DIR/cmd/gsearch-cli/main.go" -db "$TEST_DB" -q test -files
+go run "$SCRIPT_DIR/cmd/gsearch-cli" -db "$TEST_DB" -q test -files
 echo ""
 
 # Search 3: Folders only
 echo -e "${BLUE}--- Search 3: Find folders containing 'doc' ---${NC}"
-echo -e "Command: $(colorize_cmd "go run ./cmd/gsearch-cli/main.go -db $TEST_DB -q doc -folders")"
+echo -e "Command: $(colorize_cmd "go run ./cmd/gsearch-cli -db $TEST_DB -q doc -folders")"
 echo "Explanation: Searches for folders with 'doc' in the name, excluding files"
 echo ""
-go run "$SCRIPT_DIR/cmd/gsearch-cli/main.go" -db "$TEST_DB" -q doc -folders
+go run "$SCRIPT_DIR/cmd/gsearch-cli" -db "$TEST_DB" -q doc -folders
 echo ""
 
 # Search 4: Path search
 echo -e "${BLUE}--- Search 4: Search in full path for 'home' ---${NC}"
-echo -e "Command: $(colorize_cmd "go run ./cmd/gsearch-cli/main.go -db $TEST_DB -path home")"
+echo -e "Command: $(colorize_cmd "go run ./cmd/gsearch-cli -db $TEST_DB -path home")"
 echo "Explanation: Searches in the full path (not just name) for entries containing 'home'"
 echo ""
-go run "$SCRIPT_DIR/cmd/gsearch-cli/main.go" -db "$TEST_DB" -path home
+go run "$SCRIPT_DIR/cmd/gsearch-cli" -db "$TEST_DB" -path home
 echo ""
 
 # Search 5: Case-sensitive search
 echo -e "${BLUE}--- Search 5: Case-sensitive search for 'Test' ---${NC}"
-echo -e "Command: $(colorize_cmd "go run ./cmd/gsearch-cli/main.go -db $TEST_DB -q Test -case")"
+echo -e "Command: $(colorize_cmd "go run ./cmd/gsearch-cli -db $TEST_DB -q Test -case")"
 echo "Explanation: Case-sensitive search that will only match 'Test' (capital T), not 'test'"
 echo ""
-go run "$SCRIPT_DIR/cmd/gsearch-cli/main.go" -db "$TEST_DB" -q Test -case
+go run "$SCRIPT_DIR/cmd/gsearch-cli" -db "$TEST_DB" -q Test -case
 echo ""
 
 # Search 6: Limit results
 echo -e "${BLUE}--- Search 6: Limit results to 1 ---${NC}"
-echo -e "Command: $(colorize_cmd "go run ./cmd/gsearch-cli/main.go -db $TEST_DB -q test -max 1")"
+echo -e "Command: $(colorize_cmd "go run ./cmd/gsearch-cli -db $TEST_DB -q test -max 1")"
 echo "Explanation: Limits the search results to maximum 1 result"
 echo ""
-go run "$SCRIPT_DIR/cmd/gsearch-cli/main.go" -db "$TEST_DB" -q test -max 1
+go run "$SCRIPT_DIR/cmd/gsearch-cli" -db "$TEST_DB" -q test -max 1
+echo ""
+
+# Search 7: Wildcard pattern - all .txt files
+echo -e "${BLUE}--- Search 7: Wildcard - Find all .txt files ---${NC}"
+echo -e "Command: $(colorize_cmd "go run ./cmd/gsearch-cli -db $TEST_DB -q '*.txt'")"
+echo "Explanation: Wildcard pattern * matches any sequence. *.txt finds all files ending with .txt"
+echo ""
+go run "$SCRIPT_DIR/cmd/gsearch-cli" -db "$TEST_DB" -q "*.txt"
+echo ""
+
+# Search 8: Wildcard pattern - files starting with test
+echo -e "${BLUE}--- Search 8: Wildcard - Find files starting with 'test' ---${NC}"
+echo -e "Command: $(colorize_cmd "go run ./cmd/gsearch-cli -db $TEST_DB -q 'test*'")"
+echo "Explanation: Wildcard pattern test* matches files starting with 'test' followed by any characters"
+echo ""
+go run "$SCRIPT_DIR/cmd/gsearch-cli" -db "$TEST_DB" -q "test*"
+echo ""
+
+# Search 9: Wildcard pattern - single character
+echo -e "${BLUE}--- Search 9: Wildcard - Find files with single char + .go ---${NC}"
+echo -e "Command: $(colorize_cmd "go run ./cmd/gsearch-cli -db $TEST_DB -q '?.go'")"
+echo "Explanation: Wildcard pattern ? matches a single character. ?.go finds files like 'a.go', 'b.go'"
+echo ""
+go run "$SCRIPT_DIR/cmd/gsearch-cli" -db "$TEST_DB" -q "?.go"
+echo ""
+
+# Search 10: Wildcard path search
+echo -e "${BLUE}--- Search 10: Wildcard path search - Find all in /home/* ---${NC}"
+echo -e "Command: $(colorize_cmd "go run ./cmd/gsearch-cli -db $TEST_DB -path '/home/*'")"
+echo "Explanation: Wildcard patterns work in path searches too. /home/* finds all entries under /home"
+echo ""
+go run "$SCRIPT_DIR/cmd/gsearch-cli" -db "$TEST_DB" -path "/home/*"
+echo ""
+
+# Search 11: JSON output
+echo -e "${BLUE}--- Search 11: JSON output format ---${NC}"
+echo -e "Command: $(colorize_cmd "go run ./cmd/gsearch-cli -db $TEST_DB -q test -output json")"
+echo "Explanation: Output results in JSON format with structured fields: name, path, type, size, mtime"
+echo ""
+go run "$SCRIPT_DIR/cmd/gsearch-cli" -db "$TEST_DB" -q test -output json
+echo ""
+
+# Search 12: CSV output
+echo -e "${BLUE}--- Search 12: CSV output format ---${NC}"
+echo -e "Command: $(colorize_cmd "go run ./cmd/gsearch-cli -db $TEST_DB -q test -output csv")"
+echo "Explanation: Output results in CSV format with header row, suitable for spreadsheet import"
+echo ""
+go run "$SCRIPT_DIR/cmd/gsearch-cli" -db "$TEST_DB" -q test -output csv
+echo ""
+
+# Search 13: Sort by size
+echo -e "${BLUE}--- Search 13: Sort results by size ---${NC}"
+echo -e "Command: $(colorize_cmd "go run ./cmd/gsearch-cli -db $TEST_DB -q '*' -sort size")"
+echo "Explanation: Sort all results by file size (ascending). Folders are sorted by name when sorting by size"
+echo ""
+go run "$SCRIPT_DIR/cmd/gsearch-cli" -db "$TEST_DB" -q "*" -sort size
+echo ""
+
+# Search 14: Sort by modification time
+echo -e "${BLUE}--- Search 14: Sort results by modification time ---${NC}"
+echo -e "Command: $(colorize_cmd "go run ./cmd/gsearch-cli -db $TEST_DB -q '*' -sort mtime")"
+echo "Explanation: Sort results by modification time (oldest first)"
+echo ""
+go run "$SCRIPT_DIR/cmd/gsearch-cli" -db "$TEST_DB" -q "*" -sort mtime
+echo ""
+
+# Search 15: Combined options - JSON output with sorting
+echo -e "${BLUE}--- Search 15: Combined options - JSON output with size sorting ---${NC}"
+echo -e "Command: $(colorize_cmd "go run ./cmd/gsearch-cli -db $TEST_DB -q '*.txt' -sort size -output json")"
+echo "Explanation: Combine multiple options: wildcard search, sorting, and JSON output"
+echo ""
+go run "$SCRIPT_DIR/cmd/gsearch-cli" -db "$TEST_DB" -q "*.txt" -sort size -output json
 echo ""
 
 echo -e "${GREEN}=== Test run completed ===${NC}"
