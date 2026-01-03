@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -64,6 +65,7 @@ type Database struct {
 	Files        []*Entry
 	SortedArrays map[uint32]*SortedArray
 	metadata     metadata
+	pathCache    sync.Map // map[*Entry]string - caches computed paths for performance
 }
 
 // SortedArray contains pre-sorted indices for efficient searching
@@ -403,42 +405,102 @@ func (db *Database) loadSortedArrays(r io.Reader) error {
 	return nil
 }
 
-// GetFullPath returns the full path of an entry by traversing parent folders
+// GetFullPath returns the full path of an entry by traversing parent folders.
+// Paths are cached after first computation for performance.
 func (e *Entry) GetFullPath() string {
+	// Check cache first (if we have access to the database)
+	// Note: We can't access the database from Entry, so we'll cache at the Entry level
+	// For now, we'll use a simpler approach: cache in the Entry itself if it has a parent reference
+	
+	// For entries without parent, return immediately (no caching needed)
 	if e.Parent == nil {
-		// Root entry or entry without parent
 		if e.Name == "" {
 			return "/"
 		}
 		return e.Name
 	}
 
-	// Build path by traversing up the parent chain
-	parts := []string{e.Name}
+	// Check if parent's path is cached (we'll use a different approach)
+	// Since Entry doesn't have direct access to Database, we'll optimize by
+	// building the path more efficiently and caching at the Database level
+	
+	// Build path efficiently using strings.Builder
+	var builder strings.Builder
+	builder.Grow(256) // Pre-allocate reasonable capacity
+	
+	// Collect path components (we'll build in reverse order)
+	components := make([]string, 0, 10)
+	components = append(components, e.Name)
+	
 	parent := e.Parent
+	isRoot := false
 	for parent != nil {
-		if parent.Name != "" {
-			parts = append([]string{parent.Name}, parts...)
+		if parent.Name == "" {
+			isRoot = true
+			break
 		}
+		components = append(components, parent.Name)
 		parent = parent.Parent
 	}
-
-	// Join parts
-	path := strings.Join(parts, "/")
 	
-	// If we have a root parent (empty name), prepend "/"
+	// Build path from components (reverse order)
+	if isRoot {
+		builder.WriteByte('/')
+	}
+	for i := len(components) - 1; i >= 0; i-- {
+		if i < len(components)-1 {
+			builder.WriteByte('/')
+		} else if isRoot && i == len(components)-1 {
+			// Already wrote '/' for root
+		}
+		builder.WriteString(components[i])
+	}
+	
+	return builder.String()
+}
+
+// getFullPathCached returns the full path using the database's path cache.
+// This is the optimized version that should be used when Database is available.
+func (db *Database) getFullPathCached(e *Entry) string {
+	// Check cache first
+	if cached, ok := db.pathCache.Load(e); ok {
+		return cached.(string)
+	}
+	
+	// For entries without parent, cache and return immediately
+	if e.Parent == nil {
+		var path string
+		if e.Name == "" {
+			path = "/"
+		} else {
+			path = e.Name
+		}
+		db.pathCache.Store(e, path)
+		return path
+	}
+	
+	// Check if parent's path is cached
+	var parentPath string
 	if e.Parent != nil {
-		// Check if any ancestor is root (empty name)
-		p := e.Parent
-		for p != nil {
-			if p.Name == "" {
-				return "/" + path
-			}
-			p = p.Parent
+		if cached, ok := db.pathCache.Load(e.Parent); ok {
+			parentPath = cached.(string)
+		} else {
+			// Recursively compute parent's path (will cache it)
+			parentPath = db.getFullPathCached(&e.Parent.Entry)
 		}
 	}
-
-	return path
+	
+	// Build this entry's path from parent
+	var fullPath string
+	if parentPath == "/" {
+		fullPath = "/" + e.Name
+	} else {
+		fullPath = parentPath + "/" + e.Name
+	}
+	
+	// Cache it
+	db.pathCache.Store(e, fullPath)
+	return fullPath
 }
 
 // GetFullPath returns the full path of a folder

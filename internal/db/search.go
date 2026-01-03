@@ -202,7 +202,7 @@ func (db *Database) SearchByPath(pattern string, caseSensitive bool) *SearchResu
 
 	// Search files
 	for _, file := range db.Files {
-		path := file.GetFullPath()
+		path := db.getFullPathCached(file) // Use cached version
 		var matches bool
 		
 		if useWildcard {
@@ -222,7 +222,7 @@ func (db *Database) SearchByPath(pattern string, caseSensitive bool) *SearchResu
 
 	// Search folders
 	for _, folder := range db.Folders {
-		path := folder.GetFullPath()
+		path := db.getFullPathCached(&folder.Entry) // Use cached version
 		var matches bool
 		
 		if useWildcard {
