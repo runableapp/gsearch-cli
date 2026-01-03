@@ -1,0 +1,88 @@
+version: '3'
+
+vars:
+  BINARY_NAME: gsearch-cli
+  MAIN_PACKAGE: ./cmd/gsearch-cli
+
+tasks:
+  default:
+    desc: Build the application
+    task: build
+
+  build:
+    desc: Build the application
+    cmds:
+      - go build -o bin/{{.BINARY_NAME}} {{.MAIN_PACKAGE}}
+    generates:
+      - bin/{{.BINARY_NAME}}
+
+  install:
+    desc: Install the application
+    cmds:
+      - go install {{.MAIN_PACKAGE}}
+
+  test:
+    desc: Run all unit tests
+    cmds:
+      - go test -v ./...
+
+  test-unit:
+    desc: Run unit tests (alias for test)
+    cmds:
+      - go test -v ./...
+
+  test-short:
+    desc: Run unit tests in short mode (skip long-running tests)
+    cmds:
+      - go test -v -short ./...
+
+  test-race:
+    desc: Run unit tests with race detector
+    cmds:
+      - go test -v -race ./...
+
+  test-package:
+    desc: Run tests for a specific package
+    cmds:
+      - go test -v {{.PKG}}
+    vars:
+      PKG: './...'
+
+  test-coverage:
+    desc: Run tests with coverage
+    cmds:
+      - go test -v -coverprofile=coverage.out ./...
+      - go tool cover -html=coverage.out -o coverage.html
+    generates:
+      - coverage.out
+      - coverage.html
+
+  clean:
+    desc: Clean build artifacts
+    cmds:
+      - rm -rf bin/
+      - rm -f coverage.out coverage.html
+
+  lint:
+    desc: Run linter
+    cmds:
+      - go vet ./...
+      - golangci-lint run ./... || true
+
+  fmt:
+    desc: Format code
+    cmds:
+      - go fmt ./...
+
+  run:
+    desc: Run the application (pass arguments with --)
+    cmds:
+      - go run {{.MAIN_PACKAGE}} {{.CLI_ARGS}}
+    vars:
+      CLI_ARGS: ''
+
+  create-testdb:
+    desc: Create a test database file
+    cmds:
+      - ./create-testdb.sh -o test.db
+
