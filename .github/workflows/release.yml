@@ -1,6 +1,9 @@
 name: Release
 
 on:
+  push:
+    tags:
+      - '*'
   release:
     types: [created]
 
@@ -34,6 +37,21 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get tag name
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            # Extract tag from GITHUB_REF (format: refs/tags/v1.0.0)
+            TAG_NAME=${GITHUB_REF#refs/tags/}
+          else
+            # Use tag from release event
+            TAG_NAME=${{ github.event.release.tag_name }}
+          fi
+          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "Tag: $TAG_NAME"
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -68,6 +86,9 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: ${{ env.ARCHIVE_NAME }}
+          tag_name: ${{ steps.tag.outputs.TAG_NAME }}
+          draft: false
+          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
