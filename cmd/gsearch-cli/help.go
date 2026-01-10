@@ -3,12 +3,15 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+
+	"github.com/gsearch-cli/version"
 )
 
 func showUsage() {
-	programName := os.Args[0]
+	programName := "gsearch-cli"
 	if len(os.Args) > 0 {
-		programName = os.Args[0]
+		programName = filepath.Base(os.Args[0])
 	}
 
 	fmt.Fprintf(os.Stderr, `%s - Command-line interface for searching FSearch database
@@ -155,5 +158,7 @@ SORTING:
     Note: Sorting applies to both files and folders together.
 
 `, programName, programName, programName, programName, programName, programName, programName, programName, programName, programName, programName, programName, programName, programName)
-}
 
+	fmt.Fprintf(os.Stderr, "\n%s v%s\n", programName, version.Get())
+	fmt.Fprintf(os.Stderr, "Copyright © 2026 Runable.app. All rights reserved.\n")
+}

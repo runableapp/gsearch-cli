@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/gsearch-cli/internal/db"
+	"github.com/gsearch-cli/version"
 )
 
 const (
@@ -31,7 +32,29 @@ const (
 	sortFieldMTime sortField = "mtime"
 )
 
+func showVersion() {
+	programName := "gsearch-cli"
+	if len(os.Args) > 0 {
+		programName = filepath.Base(os.Args[0])
+	}
+	fmt.Printf("%s v%s\n", programName, version.Get())
+	fmt.Printf("Copyright © 2026 Runable.app. All rights reserved.\n")
+}
+
 func main() {
+	// Check for "help" or "version" as single argument before flag parsing
+	if len(os.Args) == 2 {
+		arg := os.Args[1]
+		if arg == "help" {
+			showUsage()
+			os.Exit(0)
+		}
+		if arg == "version" {
+			showVersion()
+			os.Exit(0)
+		}
+	}
+
 	var (
 		dbPath         = flag.String("db", defaultDBPath, "Path to fsearch database file")
 		query          = flag.String("q", "", "Search query (supports wildcards: * and ?)")

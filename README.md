@@ -457,11 +457,23 @@ gsearch-cli/
 │       └── database_test.go  # Unit tests
 ├── Taskfile.yml         # Task build configuration
 ├── go.mod               # Go module definition
+├── LICENSE              # GNU General Public License v3.0
 ├── README.md            # This file
 └── FSEARCH_DB.md        # Database format documentation
 ```
 
 ## License
 
-This project is provided as-is for use with FSearch databases.
+This project is licensed under the GNU General Public License v3.0 (GPL-3.0).
+
+See the [LICENSE](LICENSE) file for the full license text.
+
+### What this means:
+
+- **You are free to use, modify, and distribute** this software
+- **You must disclose source code** when distributing modified versions
+- **You must license derivative works** under the same GPL-3.0 license
+- **You must preserve copyright notices** and license information
+
+For more information about the GPL-3.0 license, visit: https://www.gnu.org/licenses/gpl-3.0.html
 
